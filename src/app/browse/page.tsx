@@ -1,10 +1,10 @@
 import React from 'react';
 import Header from '@components/Header';
 
-export default function SettingPage() {
+export default function BrowsePage() {
   return (
     <div>
-      <Header title="Settings" />
+      <Header title="Others' Diaries" />
     </div>
   )
 }
