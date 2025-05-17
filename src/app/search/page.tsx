@@ -109,12 +109,22 @@ export default function SearchPage() {
             </div>
           </div>
 
-          <button
-            type="submit"
-            className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
-            >
-            検索
-          </button>
+          <div className="w-full mt-8 px-4">
+            <div className="flex mb-2 justify-between">
+              <button
+                type="submit"
+                className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+              >
+                検索
+              </button>
+              <button
+                type="submit"
+                className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
+              >
+                登録
+              </button>
+            </div>
+          </div>
         </form>
 
         <div className="w-full mt-8 px-4">
@@ -133,8 +143,9 @@ export default function SearchPage() {
             <thead className="bg-gray-100">
               <tr>
                 <th className="border border-gray-300 px-4 py-2 w-[10%]">日付</th>
-                <th className="border border-gray-300 px-4 py-2 w-[75%]">日記</th>
+                <th className="border border-gray-300 px-4 py-2 w-[70%]">日記</th>
                 <th className="border border-gray-300 px-4 py-2 w-[10%]">気分</th>
+                <th className="border border-gray-300 px-4 py-2 w-[5%]">お気に入り</th>
                 <th className="border border-gray-300 px-4 py-2 w-[5%]">削除</th>
               </tr>
             </thead>
@@ -146,11 +157,17 @@ export default function SearchPage() {
                 <td className="border border-gray-300 px-4 py-2 text-center">
                   <input type="checkbox" />
                 </td>
+                <td className="border border-gray-300 px-4 py-2 text-center">
+                  <input type="checkbox" />
+                </td>
               </tr>
               <tr>
                 <td className="border border-gray-300 px-4 py-2 text-center">2025-05-11</td>
                 <td className="border border-gray-300 px-4 py-2">仕事が忙しかった。</td>
                 <td className="border border-gray-300 px-4 py-2 text-center">ふつう</td>
+                <td className="border border-gray-300 px-4 py-2 text-center">
+                  <input type="checkbox" />
+                </td>
                 <td className="border border-gray-300 px-4 py-2 text-center">
                   <input type="checkbox" />
                 </td>
@@ -162,6 +179,9 @@ export default function SearchPage() {
                 <td className="border border-gray-300 px-4 py-2 text-center">
                   <input type="checkbox" />
                 </td>
+                <td className="border border-gray-300 px-4 py-2 text-center">
+                  <input type="checkbox" />
+                </td>
               </tr>
               <tr>
                 <td className="border border-gray-300 px-4 py-2 text-center">2025-05-13</td>
@@ -170,11 +190,17 @@ export default function SearchPage() {
                 <td className="border border-gray-300 px-4 py-2 text-center">
                   <input type="checkbox" />
                 </td>
+                <td className="border border-gray-300 px-4 py-2 text-center">
+                  <input type="checkbox" />
+                </td>
               </tr>
               <tr>
                 <td className="border border-gray-300 px-4 py-2 text-center">2025-05-14</td>
                 <td className="border border-gray-300 px-4 py-2">友達と電話して楽しかった。</td>
                 <td className="border border-gray-300 px-4 py-2 text-center">いい</td>
+                <td className="border border-gray-300 px-4 py-2 text-center">
+                  <input type="checkbox" />
+                </td>
                 <td className="border border-gray-300 px-4 py-2 text-center">
                   <input type="checkbox" />
                 </td>
