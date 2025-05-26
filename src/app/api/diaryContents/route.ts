@@ -1,9 +1,35 @@
 import { NextRequest, NextResponse } from 'next/server';
 import db from '@lib/db';
 
-export async function GET() {
-    const diarieContents = db.prepare('SELECT * FROM DiaryContents').all();
-    return NextResponse.json(diarieContents);
+export async function GET(req: NextRequest) {
+    const { searchParams } = new URL(req.url);
+
+    const date = searchParams.get('date');
+    const word = searchParams.get('word');
+    const mood = searchParams.get('mood');
+    const favorite = searchParams.get('favorite') === 'true';
+
+    let query = 'SELECT * FROM DiaryContents WHERE 1=1';
+    const params: any[] = [];
+
+    if (date) {
+        query += ' AND Date = ?'
+        params.push(date);
+    }
+    if (word) {
+        query += ' AND Content LIKE ?'
+        params.push('%${word}%');
+    }
+    if (mood) {
+        query += ' AND Mood = ?'
+        params.push(mood);
+    }
+    if (favorite) {
+        query += ' AND Favorite = 1';
+    }
+
+    const diaryContents = db.prepare(query).all(...params);
+    return NextResponse.json(diaryContents);
 }
 
 export async function POST(req: NextRequest) {

@@ -28,9 +28,31 @@ export default function SearchPage() {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     console.log('検索条件：', formData);
+
+    try {
+      const query = new URLSearchParams({
+        date: formData.date,
+        word: formData.word,
+        mood: formData.mood,
+        favorite: String(formData.favorite),
+      });
+
+      const res = await fetch('/api/diaryContents?${query}', {
+        method: 'GET',
+      });
+
+      if (!res.ok) throw new Error('検索失敗');
+
+      const data = await res.json();
+      console.log('取得したデータ：', data);
+
+      setRows(data);
+    } catch (error) {
+      console.error('検索中にエラーが発生しました：', error);
+    }
   };
 
   const handleCheckboxChange = (id: number, checked: boolean) => {
