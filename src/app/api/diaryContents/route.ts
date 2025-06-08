@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
     }
     if (word) {
         query += ' AND Content LIKE ?'
-        params.push('%${word}%');
+        params.push(`%${word}%`);
     }
     if (mood) {
         query += ' AND Mood = ?'

@@ -2,30 +2,56 @@
 
 import React, { useState } from 'react';
 import Header from '@components/Header';
+import { format } from 'date-fns';
 
 export default function SearchPage() {
   const [formData, setFormData] = useState({
     date: '',
     word: '',
-    mood: '',
+    mood:  '',
     favorite: false,
   });
 
-  const [rows, setRows] = useState([
-    { id: 1, date: '2025-05-10', diary: '今日は散歩して気分が良かった。', mood: 'いい' },
-    { id: 2, date: '2025-05-11', diary: '仕事が忙しくて疲れた日だった。', mood: 'ふつう' },
-    { id: 3, date: '2025-05-12', diary: 'カフェでゆっくり過ごした。', mood: 'すごくいい' },
-    { id: 4, date: '2025-05-13', diary: '風邪気味で体調が悪い。', mood: 'わるい' },
-    { id: 5, date: '2025-05-14', diary: '友達と電話して楽しかった。', mood: 'いい' },
-  ]);
+  interface DiaryRow {
+    id: string;
+    date: string;
+    diary: string;
+    mood: string;
+    favorite?: boolean;
+  }
 
-  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [rows, setRows] = useState<DiaryRow[]>([]);
 
-  const moods = ['すごくいい', 'いい', 'ふつう', 'わるい', 'すごくわるい'];
+  const [selectedIds, setSelectedIds] = useState<(string | number)[]>([]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const moodMap: Record<number, string> = {
+    0: '',
+    1: 'すごくいい',
+    2: 'いい',
+    3: 'ふつう',
+    4: 'わるい',
+    5: 'すごくわるい',
+  }
+
+  const moods = Object.entries(moodMap);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+
+    let newValue: string | number = value;
+
+    if (name === 'mood') {
+      newValue = value === '0' ? '' : Number(value);
+    } else if (name === 'date') {
+      newValue = format(value, 'yyyyMMdd');
+    } else if (name === 'favorite') {
+      newValue = value ? Number(1) : Number(0);
+    }
+
+    setFormData(prev => (
+      { ...prev,
+        [name]: newValue,
+      }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -40,7 +66,7 @@ export default function SearchPage() {
         favorite: String(formData.favorite),
       });
 
-      const res = await fetch('/api/diaryContents?${query}', {
+      const res = await fetch(`/api/diaryContents?${query.toString()}`, {
         method: 'GET',
       });
 
@@ -49,15 +75,32 @@ export default function SearchPage() {
       const data = await res.json();
       console.log('取得したデータ：', data);
 
-      setRows(data);
+      // APIデータを画面用の形式に変換
+      const mappedData = data.map((item: any) => ({
+        id: item.ContentID,
+        date: `${item.Date.slice(0, 4)}-${item.Date.slice(4, 6)}-${item.Date.slice(6, 8)}`,
+        diary: item.Content,
+        mood: moodMap[item.Mood] || '',
+        favorite: item.Favorite === 1
+      }))
+
+      setRows(mappedData);
     } catch (error) {
       console.error('検索中にエラーが発生しました：', error);
     }
   };
 
-  const handleCheckboxChange = (id: number, checked: boolean) => {
+  const handleCheckboxChange = (id: string | number, checked: boolean) => {
     setSelectedIds((prev) =>
       checked ? [...prev, id] : prev.filter((item) => item !== id)
+    );
+  };
+
+  const handleFavoriteChange = (id: string, checked: boolean) => {
+    setRows((prev) =>
+      prev.map((row) =>
+        row.id === id ? {...row, favorite: checked } : row
+      )
     );
   };
 
@@ -77,7 +120,11 @@ export default function SearchPage() {
               <input
                 type="date"
                 name="date"
-                value={formData.date}
+                value={
+                  formData.date
+                    ? `${formData.date.slice(0, 4)}-${formData.date.slice(4, 6)}-${formData.date.slice(6, 8)}`
+                    : ''
+                }
                 onChange={handleChange}
                 className="border rounded px-2 py-1 w-full"
                 />
@@ -103,10 +150,12 @@ export default function SearchPage() {
                 onChange={handleChange}
                 className="border rounded px-2 py-1 w-full"
                 >
-                <option value="">選択してください</option>
-                {moods.map((mood, index) => (
-                  <option key={index} value={mood}>
-                    {mood}
+                <option value="" disabled hidden>
+                  選択して下さい
+                </option>
+                {moods.map(([value, label]) => (
+                  <option key={`mood-${value}`} value={value}>
+                    {label}
                   </option>
                 ))}
               </select>
@@ -149,87 +198,76 @@ export default function SearchPage() {
           </div>
         </form>
 
-        <div className="w-full mt-8 px-4">
-          <div className="flex justify-end mb-2">
-            <button
-              onClick={handleDelete}
-              className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
-            >
-              削除
-            </button>
-          </div>
-        </div>
+        {rows.length > 0 && (
+          <>
+            <div className="w-full mt-8 px-4">
+              <div className="flex justify-end mp-2">
+                <button
+                  onClick={handleDelete}
+                  disabled={selectedIds.length === 0}
+                  className={`px-4 py-2 rounded text-white ${
+                    selectedIds.length === 0
+                    ? 'bg-gray-400 cursor-not-allowed'
+                    : 'bg-red-500 hover:bg-red-600'
+                  }`}
+                >
+                  削除 ({selectedIds.length})
+                </button>
+              </div>
+            </div>
         
-        <div className="w-full overflow-x-auto mt-8">
-          <table className="table-suto w-full border-collapse border border-gray-300">
-            <thead className="bg-gray-100">
-              <tr>
-                <th className="border border-gray-300 px-4 py-2 w-[10%]">日付</th>
-                <th className="border border-gray-300 px-4 py-2 w-[70%]">日記</th>
-                <th className="border border-gray-300 px-4 py-2 w-[10%]">気分</th>
-                <th className="border border-gray-300 px-4 py-2 w-[5%]">お気に入り</th>
-                <th className="border border-gray-300 px-4 py-2 w-[5%]">削除</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td className="border border-gray-300 px-4 py-2 text-center">2025-05-10</td>
-                <td className="border border-gray-300 px-4 py-2">今日は散歩して気分が良かった。</td>
-                <td className="border border-gray-300 px-4 py-2 text-center">いい</td>
-                <td className="border border-gray-300 px-4 py-2 text-center">
-                  <input type="checkbox" />
-                </td>
-                <td className="border border-gray-300 px-4 py-2 text-center">
-                  <input type="checkbox" />
-                </td>
-              </tr>
-              <tr>
-                <td className="border border-gray-300 px-4 py-2 text-center">2025-05-11</td>
-                <td className="border border-gray-300 px-4 py-2">仕事が忙しかった。</td>
-                <td className="border border-gray-300 px-4 py-2 text-center">ふつう</td>
-                <td className="border border-gray-300 px-4 py-2 text-center">
-                  <input type="checkbox" />
-                </td>
-                <td className="border border-gray-300 px-4 py-2 text-center">
-                  <input type="checkbox" />
-                </td>
-              </tr>
-              <tr>
-                <td className="border border-gray-300 px-4 py-2 text-center">2025-05-12</td>
-                <td className="border border-gray-300 px-4 py-2">カフェでゆっくり過ごした。</td>
-                <td className="border border-gray-300 px-4 py-2 text-center">すごくいい</td>
-                <td className="border border-gray-300 px-4 py-2 text-center">
-                  <input type="checkbox" />
-                </td>
-                <td className="border border-gray-300 px-4 py-2 text-center">
-                  <input type="checkbox" />
-                </td>
-              </tr>
-              <tr>
-                <td className="border border-gray-300 px-4 py-2 text-center">2025-05-13</td>
-                <td className="border border-gray-300 px-4 py-2">風邪引いた。</td>
-                <td className="border border-gray-300 px-4 py-2 text-center">わるい</td>
-                <td className="border border-gray-300 px-4 py-2 text-center">
-                  <input type="checkbox" />
-                </td>
-                <td className="border border-gray-300 px-4 py-2 text-center">
-                  <input type="checkbox" />
-                </td>
-              </tr>
-              <tr>
-                <td className="border border-gray-300 px-4 py-2 text-center">2025-05-14</td>
-                <td className="border border-gray-300 px-4 py-2">友達と電話して楽しかった。</td>
-                <td className="border border-gray-300 px-4 py-2 text-center">いい</td>
-                <td className="border border-gray-300 px-4 py-2 text-center">
-                  <input type="checkbox" />
-                </td>
-                <td className="border border-gray-300 px-4 py-2 text-center">
-                  <input type="checkbox" />
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+            <div className="w-full overflow-x-auto mt-8">
+              <table className="table-auto w-full border-collapse border border-gray-300">
+                <thead className="bg-gray-100">
+                  <tr>
+                    <th className="border border-gray-300 px-4 py-2 w-[10%]">日付</th>
+                    <th className="border border-gray-300 px-4 py-2 w-[65%]">日記</th>
+                    <th className="border border-gray-300 px-4 py-2 w-[10%]">気分</th>
+                    <th className="border border-gray-300 px-4 py-2 w-[10%]">お気に入り</th>
+                    <th className="border border-gray-300 px-4 py-2 w-[5%]">削除</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((row, index) => (
+                    <tr key={`diary-${index}-${row.id || 'no-id'}`}>
+                      <td className="border border-gray-300 px-4 py-2 text-center">
+                        {row.date}
+                      </td>
+                      <td className="border border-gray-300 px-4 py-2">
+                        {row.diary}
+                      </td>
+                      <td className="border border-gray-300 px-4 py-2 text-center">
+                        {row.mood}
+                      </td>
+                      <td className="border border-gray-300 px-4 py-2 text-center">
+                        <input
+                          type="checkbox"
+                          checked={row.favorite || false}
+                          onChange={(e) => handleFavoriteChange(row.id, e.target.checked)}
+                          />
+                      </td>
+                      <td className="border border-gray-300 px-4 py-2 text-center">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.includes(String(row.id || index))}
+                          onChange={(e) => handleCheckboxChange(row.id || index, e.target.checked)}
+                          />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+
+        {rows.length === 0 && (
+          <div className="w-full mt-8 px-4">
+            <div className="text-center text-gray-500 py-8">
+              検索結果がありません
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );
