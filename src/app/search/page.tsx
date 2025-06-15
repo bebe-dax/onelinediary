@@ -18,10 +18,15 @@ export default function SearchPage() {
     diary: string;
     mood: string;
     favorite?: boolean;
+    isEditing?: boolean;
+    originalData?: {
+      diary: string;
+      mood: string;
+      favorite: boolean;
+    };
   }
 
   const [rows, setRows] = useState<DiaryRow[]>([]);
-
   const [selectedIds, setSelectedIds] = useState<(string | number)[]>([]);
 
   const moodMap: Record<number, string> = {
@@ -32,6 +37,14 @@ export default function SearchPage() {
     4: 'わるい',
     5: 'すごくわるい',
   }
+
+  const reverseMoodMap: Record<string, number> = {
+    'すごくいい': 1,
+    'いい': 2,
+    'ふつう': 3,
+    'わるい': 4,
+    'すごくわるい': 5,
+  };
 
   const moods = Object.entries(moodMap);
 
@@ -81,7 +94,8 @@ export default function SearchPage() {
         date: `${item.Date.slice(0, 4)}-${item.Date.slice(4, 6)}-${item.Date.slice(6, 8)}`,
         diary: item.Content,
         mood: moodMap[item.Mood] || '',
-        favorite: item.Favorite === 1
+        favorite: item.Favorite === 1,
+        isEditing: false,
       }))
 
       setRows(mappedData);
@@ -104,9 +118,131 @@ export default function SearchPage() {
     );
   };
 
-  const handleDelete = () => {
-    setRows((prev) => prev.filter((row) => !selectedIds.includes(row.id)));
-    setSelectedIds([]);
+  // 編集モードを開始
+  const handleEdit = (id: string) => {
+    setRows((prev) =>
+      prev.map((row) =>
+        row.id === id 
+          ? {
+              ...row, 
+              isEditing: true,
+              originalData: {
+                diary: row.diary,
+                mood: row.mood,
+                favorite: row.favorite || false
+              }
+            }
+          : row
+      )
+    );
+  };
+
+  // 編集をキャンセル
+  const handleCancelEdit = (id: string) => {
+    setRows((prev) =>
+      prev.map((row) =>
+        row.id === id && row.originalData
+          ? {
+              ...row,
+              diary: row.originalData.diary,
+              mood: row.originalData.mood,
+              favorite: row.originalData.favorite,
+              isEditing: false,
+              originalData: undefined
+            }
+          : row
+      )
+    );
+  };
+
+  // 編集内容を保存
+  const handleSaveEdit = async (id: string) => {
+    const row = rows.find(r => r.id === id);
+    if (!row) return;
+
+    try {
+      const updateData = {
+        contentId: id,
+        content: row.diary,
+        mood: reverseMoodMap[row.mood] || 0,
+        favorite: row.favorite ? 1 : 0
+      };
+
+      const res = await fetch('/api/diaryContents', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updateData),
+      });
+
+      if (!res.ok) {
+        throw new Error('更新処理に失敗しました');
+      }
+
+      const result = await res.json();
+      console.log('更新結果：', result);
+
+      // 編集モードを終了
+      setRows((prev) =>
+        prev.map((row) =>
+          row.id === id 
+            ? { ...row, isEditing: false, originalData: undefined }
+            : row
+        )
+      );
+
+      alert('日記を更新しました');
+    } catch (error) {
+      console.error('更新中にエラーが発生しました：', error);
+      alert('更新処理に失敗しました');
+    }
+  };
+
+  // 行内編集用の変更ハンドラ
+  const handleRowEdit = (id: string, field: 'diary' | 'mood' | 'favorite', value: string | boolean) => {
+    setRows((prev) =>
+      prev.map((row) =>
+        row.id === id ? { ...row, [field]: value } : row
+      )
+    );
+  };
+
+  const handleDelete = async () => {
+    if (selectedIds.length === 0) return;
+
+    try {
+      // 選択されたContentIDsを配列として送信
+      const contentIds = selectedIds.map(id => String(id));
+
+      console.log('削除対象のContentID：', contentIds);
+
+      const res = await fetch('/api/diaryContents', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contentIds: contentIds
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error('削除処理に失敗しました');
+      }
+
+      const result = await res.json();
+      console.log('削除結果：', result);
+
+      // API削除成功後、画面からも削除
+      setRows((prev) => prev.filter((row) => !selectedIds.includes(row.id)));
+      setSelectedIds([]);
+
+      alert('選択したデータを削除しました');
+    } catch (error) {
+      console.error('削除中にエラーが発生しました：', error);
+      alert('削除処理に失敗しました');
+    }
   }
 
   return (
@@ -221,9 +357,10 @@ export default function SearchPage() {
                 <thead className="bg-gray-100">
                   <tr>
                     <th className="border border-gray-300 px-4 py-2 w-[10%]">日付</th>
-                    <th className="border border-gray-300 px-4 py-2 w-[65%]">日記</th>
+                    <th className="border border-gray-300 px-4 py-2 w-[55%]">日記</th>
                     <th className="border border-gray-300 px-4 py-2 w-[10%]">気分</th>
-                    <th className="border border-gray-300 px-4 py-2 w-[10%]">お気に入り</th>
+                    <th className="border border-gray-300 px-4 py-2 w-[8%]">お気に入り</th>
+                    <th className="border border-gray-300 px-4 py-2 w-[12%]">操作</th>
                     <th className="border border-gray-300 px-4 py-2 w-[5%]">削除</th>
                   </tr>
                 </thead>
@@ -234,17 +371,71 @@ export default function SearchPage() {
                         {row.date}
                       </td>
                       <td className="border border-gray-300 px-4 py-2">
-                        {row.diary}
+                        {row.isEditing ? (
+                          <textarea
+                            value={row.diary}
+                            onChange={(e) => handleRowEdit(row.id, 'diary', e.target.value)}
+                            className="w-full border rounded px-2 py-1 min-h-[60px] resize-y"
+                          />
+                        ) : (
+                          <div className="whitespace-pre-wrap">{row.diary}</div>
+                        )}
                       </td>
                       <td className="border border-gray-300 px-4 py-2 text-center">
-                        {row.mood}
+                        {row.isEditing ? (
+                          <select
+                            value={row.mood}
+                            onChange={(e) => handleRowEdit(row.id, 'mood', e.target.value)}
+                            className="border rounded px-2 py-1 w-full"
+                          >
+                            <option value="">選択</option>
+                            {Object.entries(moodMap).slice(1).map(([value, label]) => (
+                              <option key={`edit-mood-${value}`} value={label}>
+                                {label}
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          row.mood
+                        )}
                       </td>
                       <td className="border border-gray-300 px-4 py-2 text-center">
                         <input
                           type="checkbox"
                           checked={row.favorite || false}
-                          onChange={(e) => handleFavoriteChange(row.id, e.target.checked)}
+                          onChange={(e) => {
+                            if (row.isEditing) {
+                              handleRowEdit(row.id, 'favorite', e.target.checked);
+                            } else {
+                              handleFavoriteChange(row.id, e.target.checked);
+                            }
+                          }}
                           />
+                      </td>
+                      <td className="border border-gray-300 px-4 py-2 text-center">
+                        {row.isEditing ? (
+                          <div className="flex gap-1 justify-center">
+                            <button
+                              onClick={() => handleSaveEdit(row.id)}
+                              className="bg-green-500 text-white px-2 py-1 rounded text-xs hover:bg-green-600"
+                            >
+                              保存
+                            </button>
+                            <button
+                              onClick={() => handleCancelEdit(row.id)}
+                              className="bg-gray-500 text-white px-2 py-1 rounded text-xs hover:bg-gray-600"
+                            >
+                              キャンセル
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => handleEdit(row.id)}
+                            className="bg-blue-500 text-white px-3 py-1 rounded text-xs hover:bg-blue-600"
+                          >
+                            編集
+                          </button>
+                        )}
                       </td>
                       <td className="border border-gray-300 px-4 py-2 text-center">
                         <input

@@ -39,8 +39,109 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ id: info.lastInsertRowid });
 }
 
+export async function PUT(req: NextRequest) {
+    try {
+        const body = await req.json();
+        const { contentId, content, mood, favorite } = body;
+
+        // 必須パラメータのチェック
+        if (!contentId) {
+            return NextResponse.json(
+                { error: 'contentId is required' },
+                { status: 400 }
+            );
+        }
+
+        // 更新クエリの構築
+        let updateQuery = 'UPDATE DiaryContents SET';
+        const updateParams: any[] = [];
+        const updateFields: string[] = [];
+
+        if (content !== undefined) {
+            updateFields.push(' Content = ?');
+            updateParams.push(content);
+        }
+        if (mood !== undefined) {
+            updateFields.push(' Mood = ?');
+            updateParams.push(mood);
+        }
+        if (favorite !== undefined) {
+            updateFields.push(' Favorite = ?');
+            updateParams.push(favorite);
+        }
+
+        // 更新するフィールドが存在しない場合
+        if (updateFields.length === 0) {
+            return NextResponse.json(
+                { error: 'No fields to update' },
+                { status: 400 }
+            );
+        }
+
+        updateQuery += updateFields.join(',') + ' WHERE ContentID = ?';
+        updateParams.push(contentId);
+
+        // データベース更新の実行
+        const updateStatement = db.prepare(updateQuery);
+        const result = updateStatement.run(...updateParams);
+
+        // 更新対象が存在しない場合
+        if (result.changes === 0) {
+            return NextResponse.json(
+                { error: 'Diary entry not found' },
+                { status: 404 }
+            );
+        }
+
+        // 更新された内容を取得して返す
+        const selectQuery = 'SELECT * FROM DiaryContents WHERE ContentID = ?';
+        const updatedEntry = db.prepare(selectQuery).get(contentId);
+
+        return NextResponse.json({
+            message: 'Diary entry updated successfully',
+            data: updatedEntry,
+            changes: result.changes
+        });
+
+    } catch (error) {
+        console.error('Database update error:', error);
+        return NextResponse.json(
+            { error: 'Internal server error' },
+            { status: 500 }
+        );
+    }
+}
+
 export async function DELETE(req: NextRequest) {
-    const { ContentID } = await req.json();
-    db.prepare('DELETE FROM DiaryContents WHERE ContentID = ?').run(ContentID);
-    return NextResponse.json({ success: true});
+    try {
+        const { contentIds } = await req.json();
+
+        // contentIdsが配列でない場合や空の場合のバリデーション
+        if (!Array.isArray(contentIds) || contentIds.length === 0) {
+            return NextResponse.json(
+                { sucess: false, error: 'contentIds配列が必要です' },
+                { status: 400 }
+            );
+        }
+
+        // プレースホルダーを動的に生成(?, ?, ?, ...)
+        const placeholders = contentIds.map(() => '?').join(', ');
+        const query = `DELETE FROM DiaryContents WHERE ContentID IN (${placeholders})`;
+
+        // 削除実行
+        const stmt = db.prepare(query);
+        const result = stmt.run(...contentIds);
+
+        return NextResponse.json({
+            sucess: true,
+            deletedCount: result.changes,
+            message: `${result.changes}件のデータを削除しました`
+        });
+    } catch (error) {
+        console.error('削除処理エラー：', error);
+        return NextResponse.json(
+            { sucess: false, error: '削除処理中にエラーが発生しました' },
+            { status: 500 }
+        );
+    }
 }
