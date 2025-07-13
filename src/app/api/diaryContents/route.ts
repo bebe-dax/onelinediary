@@ -33,10 +33,54 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-    const { Content, Mood } = await req.json();
-    const stmt = db.prepare('INSERT INTO DiaryContents (Content, Mood) VALUES (?, ?)');
-    const info = stmt.run(Content, Mood);
-    return NextResponse.json({ id: info.lastInsertRowid });
+    try {
+        const body = await req.json();
+        const { content, mood } = body;
+
+        // 必須パラメータのチェック
+        if (!content) {
+            return NextResponse.json(
+                { error: 'content is required' },
+                { status: 400 }
+            );
+        }
+
+        // 挿入クエリの構築
+        const insertFields: string[] = ['Content'];
+        const placeholders: string[] = ['?'];
+        const insertParams: any[] = [content];
+
+        // オプショナルフィールドの追加
+        if (mood !== undefined) {
+            insertFields.push('Mood');
+            placeholders.push('?');
+            insertParams.push(mood);
+        }
+
+        // クエリの組み立て
+        const insertQuery = `INSERT INTO DiaryContents(${insertFields.join(', ')}) VALUES (${placeholders.join(', ')})`;
+
+        // データベース挿入の実行
+        const insertStatement = db.prepare(insertQuery);
+        const result = insertStatement.run(...insertParams);
+
+        // 挿入された内容を取得して返す
+        const selectQuery = 'SELECT * FROM DiaryContents WHERE ContentID = ?';
+        const insertedEntry = db.prepare(selectQuery).get(result.lastInsertRowid);
+
+        return NextResponse.json({
+            message: 'Diary entry created successfully',
+            data: insertedEntry,
+            id: result.lastInsertRowid
+        });
+
+    } catch (error) {
+        console.error('Database insert error:', error);
+        return NextResponse.json(
+            { error: 'Internal server error' },
+            { status: 500 }
+        );
+    }
 }
 
 export async function PUT(req: NextRequest) {

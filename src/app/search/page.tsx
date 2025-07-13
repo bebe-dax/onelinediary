@@ -28,6 +28,7 @@ export default function SearchPage() {
 
   const [rows, setRows] = useState<DiaryRow[]>([]);
   const [selectedIds, setSelectedIds] = useState<(string | number)[]>([]);
+  const [hasSearched, setHasSearched] = useState(false);
 
   const moodMap: Record<number, string> = {
     0: '',
@@ -70,6 +71,7 @@ export default function SearchPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     console.log('検索条件：', formData);
+    setHasSearched(true);
 
     try {
       const query = new URLSearchParams({
@@ -324,12 +326,6 @@ export default function SearchPage() {
               >
                 検索
               </button>
-              <button
-                type="submit"
-                className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
-              >
-                登録
-              </button>
             </div>
           </div>
         </form>
@@ -403,6 +399,7 @@ export default function SearchPage() {
                         <input
                           type="checkbox"
                           checked={row.favorite || false}
+                          disabled={!row.isEditing}
                           onChange={(e) => {
                             if (row.isEditing) {
                               handleRowEdit(row.id, 'favorite', e.target.checked);
@@ -452,7 +449,7 @@ export default function SearchPage() {
           </>
         )}
 
-        {rows.length === 0 && (
+        {hasSearched && rows.length === 0 && (
           <div className="w-full mt-8 px-4">
             <div className="text-center text-gray-500 py-8">
               検索結果がありません
