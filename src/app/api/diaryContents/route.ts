@@ -35,9 +35,21 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
     try {
         const body = await req.json();
-        const { content, mood } = body;
+        const { diaryId, date, content, mood } = body;
 
         // 必須パラメータのチェック
+        if (!diaryId) {
+            return NextResponse.json(
+                { error: 'diaryId is required' },
+                { status: 400 }
+            );
+        }
+        if (!date) {
+            return NextResponse.json(
+                { error: 'date is required' },
+                { status: 400 }
+            );
+        }
         if (!content) {
             return NextResponse.json(
                 { error: 'content is required' },
@@ -45,17 +57,32 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        // 挿入クエリの構築
-        const insertFields: string[] = ['Content'];
+        // diaryId
+        const insertFields: string[] = ['DiaryID'];
         const placeholders: string[] = ['?'];
-        const insertParams: any[] = [content];
+        const insertParams: any[] = [diaryId];
 
-        // オプショナルフィールドの追加
+        // date
+        insertFields.push('Date');
+        placeholders.push('?');
+        insertParams.push(date);
+
+        // Content
+        insertFields.push('Content');
+        placeholders.push('?');
+        insertParams.push(content);
+
+        // Mood
         if (mood !== undefined) {
             insertFields.push('Mood');
             placeholders.push('?');
             insertParams.push(mood);
         }
+
+        // Favorite(デフォルトは0)
+        insertFields.push('Favorite');
+        placeholders.push('?');
+        insertParams.push(1);
 
         // クエリの組み立て
         const insertQuery = `INSERT INTO DiaryContents(${insertFields.join(', ')}) VALUES (${placeholders.join(', ')})`;

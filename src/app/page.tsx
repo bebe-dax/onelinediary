@@ -6,6 +6,17 @@ import Header from '@components/Header';
 export default function Home() {
   const [diary, setDiary] = useState('');
   const [mood, setMood] = useState(3);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const getCurrentDate = () => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    return `${year}${month}${day}`;
+  };
+
+  const today = getCurrentDate();
 
   // 気分の選択肢とラベルのマッピング
   const moodOptions = [
@@ -16,10 +27,51 @@ export default function Home() {
     { value: 5, label: 'すごくわるい' }
   ];
 
-  const handleSubmit = () => {
-    console.log('日記:', diary);
-    console.log('気分:', mood);
-  }
+  const handleSubmit = async () => {
+    // 日記の内容がからの場合は処理を中断
+    if (!diary.trim()) {
+      alert('日記の内容を入力してください。')
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const response = await fetch('/api/diaryContents', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          // diaryIdはUserIDから取得するように修正
+          diaryId: 1,
+          date: today,
+          content: diary,
+          mood: mood
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+
+      // 成功時の処理
+      console.log('日記が正常に登録されました:', result);
+      alert('日記が正常に登録されました！');
+
+      // フォームをリセット
+      setDiary('');
+      setMood(3);
+      
+    } catch (error) {
+      console.error('日記の登録中にエラーが発生しました:', error);
+      alert('日記の登録に失敗しました。もう一度お試しください。');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <div>
@@ -35,13 +87,19 @@ export default function Home() {
               value={diary}
               onChange={(e) => setDiary(e.target.value)}
               className="border border-gray-300 rounded-lg px-4 py-2 w-full focus:outline-none focus:fing-2 focus:ring-blue-500"
+              disabled={isSubmitting}
               />
             <button
               type="button"
               onClick={handleSubmit}
-              className="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 whitespace-nowrap"
+              disabled={isSubmitting}
+              className={`px-4 py-2 rounded-lg whitespace-nowrap text-white ${
+                isSubmitting
+                  ? 'bg-gray-400 cursor-not-allowed'
+                  : 'bg-green-500 hover:bg-green-600'
+              }`}
             >
-              登録
+              {isSubmitting ? '登録中 ...' : '登録'}
             </button>
           </div>
 
@@ -55,6 +113,7 @@ export default function Home() {
               value={mood}
               onChange={(e) => setMood(Number(e.target.value))}
               className="border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+               disabled={isSubmitting}
             >
               {moodOptions.map((option) => (
                 <option key={option.value} value={option.value}>
